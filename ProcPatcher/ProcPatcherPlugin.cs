@@ -33,18 +33,24 @@ namespace ProcPatcher
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcPatcher";
-        public const string version = "1.0.0";
+        public const string version = "1.0.1";
         #endregion
 
         #region config
         internal static ConfigFile CustomConfigFile { get; private set; }
         public static ConfigEntry<bool> ShurikenDamageSource { get; set; }
+        public static ConfigEntry<bool> BleedChanceProcCoeff { get; set; }
+        public static ConfigEntry<bool> RunicLensProcCoeff { get; set; }
+        public static ConfigEntry<bool> ElectricBoomerangProcCoeff { get; set; }
         #endregion
 
         void Awake()
         {
             CustomConfigFile = new ConfigFile(Paths.ConfigPath + "\\ProcPatcher.cfg", true);
-            ShurikenDamageSource = CustomConfigFile.Bind<bool>("Proc Patcher", "Shuriken Damage Source", true, "Should Proc Patcher set Shuriken's Damage Source to Primary?");
+            ShurikenDamageSource = CustomConfigFile.Bind<bool>("Proc Patcher : Damage Source", "Shuriken Damage Source", true, "Should Proc Patcher set Shuriken's Damage Source to Primary?");
+            BleedChanceProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Bleed Proc Chance Be Affected By Proc Coefficient", true, "Should Bleed Proc Chance Be Affected By Proc Coefficient");
+            RunicLensProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Runic Lens Proc Chance Be Affected By Proc Coefficient", true, "Should Runic Lens Proc Chance Be Affected By Proc Coefficient");
+            ElectricBoomerangProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Electric Boomerang Proc Chance Be Affected By Proc Coefficient", true, "Should Electric Boomerang Proc Chance Be Affected By Proc Coefficient");
 
             IL.RoR2.GlobalEventManager.ProcessHitEnemy += ProcCoeffFix_OnHitEnemy;
 
@@ -65,19 +71,19 @@ namespace ProcPatcher
         {
             ILCursor c = new ILCursor(il);
 
-            FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "BleedOnHitAndExplode", false); //this is bleed chance
+            FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "BleedOnHitAndExplode", isChainProc: false, fixProcCoeff: BleedChanceProcCoeff.Value); //this is bleed chance
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "Missile");
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "ChainLightning");
             FixChanceForProcItem(c, "RoR2.DLC1Content/Items", "ChainLightningVoid");
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "BounceNearby");
-            FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "StickyBomb", false);
+            FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "StickyBomb", isChainProc: false);
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "FireballsOnHit");
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "LightningStrikeOnHit");
-            //FixChanceForProcItem(c, "RoR2.DLC2Content/Items", "MeteorAttackOnHighDamage");
-            //FixChanceForProcItem(c, "RoR2.DLC2Content/Items", "StunAndPierceDamage");
+            FixChanceForProcItem(c, "RoR2.DLC2Content/Items", "MeteorAttackOnHighDamage", fixProcCoeff: RunicLensProcCoeff.Value);
+            FixChanceForProcItem(c, "RoR2.DLC2Content/Items", "StunAndPierceDamage", fixProcCoeff: ElectricBoomerangProcCoeff.Value);
         }
 
-        private void FixChanceForProcItem(ILCursor c, string a, string b, bool isChainProc = true)
+        private void FixChanceForProcItem(ILCursor c, string a, string b, bool isChainProc = true, bool fixProcCoeff = true)
         {
             c.Index = 0;
 
@@ -93,6 +99,13 @@ namespace ProcPatcher
             c.Remove();
             c.EmitDelegate<Func<DamageInfo, float>>((damageInfo) =>
             {
+                float procRate = 1;
+
+                if (isChainProc)
+                    procRate *= GetProcRate(damageInfo);
+                if(!fixProcCoeff)
+                    procRate *= damageInfo.procCoefficient;
+
                 return GetProcRate(damageInfo);
             });
         }
