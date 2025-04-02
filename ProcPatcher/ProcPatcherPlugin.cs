@@ -33,7 +33,7 @@ namespace ProcPatcher
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcPatcher";
-        public const string version = "1.0.1";
+        public const string version = "1.0.3";
         #endregion
 
         #region config
@@ -80,49 +80,53 @@ namespace ProcPatcher
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "FireballsOnHit");
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "LightningStrikeOnHit");
             FixChanceForProcItem(c, "RoR2.DLC2Content/Items", "MeteorAttackOnHighDamage", fixProcCoeff: RunicLensProcCoeff.Value);
-            FixChanceForProcItem(c, "RoR2.DLC2Content/Items", "StunAndPierceDamage", fixProcCoeff: ElectricBoomerangProcCoeff.Value);
+            FixChanceForProcItem(c, "RoR2.DLC2Content/Items", "StunAndPierce", fixProcCoeff: ElectricBoomerangProcCoeff.Value);
         }
 
         private void FixChanceForProcItem(ILCursor c, string a, string b, bool isChainProc = true, bool fixProcCoeff = true)
         {
             c.Index = 0;
 
-            c.GotoNext(
-                MoveType.After,
-                x => x.MatchLdsfld(a, b),
-                x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCount))
-                );
-            c.GotoNext(
-                MoveType.Before,
-                x => x.MatchLdfld<DamageInfo>(nameof(DamageInfo.procCoefficient))
-                );
-            c.Remove();
-            c.EmitDelegate<Func<DamageInfo, float>>((damageInfo) =>
+            if(
+                c.TryGotoNext(
+                    MoveType.After,
+                    x => x.MatchLdsfld(a, b),
+                    x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCount))
+                    )
+                && c.TryGotoNext(
+                    MoveType.Before,
+                    x => x.MatchLdfld<DamageInfo>(nameof(DamageInfo.procCoefficient))
+                    )
+                )
             {
-                float procRate = 1;
+                c.Remove();
+                c.EmitDelegate<Func<DamageInfo, float>>((damageInfo) =>
+                {
+                    float procRate = 1;
 
-                if (isChainProc)
-                    procRate *= GetProcRate(damageInfo);
-                if(!fixProcCoeff)
-                    procRate *= damageInfo.procCoefficient;
+                    if (isChainProc)
+                        procRate *= GetProcRate(damageInfo);
+                    if (!fixProcCoeff)
+                        procRate *= damageInfo.procCoefficient;
 
-                return GetProcRate(damageInfo);
-            });
+                    return procRate;
+                });
+                Debug.Log(b + " Proc Hook Success");
+            }
+            else
+            {
+                Debug.LogError(b + " Proc Hook Failed");
+            }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
         private float GetProcRate(DamageInfo damageInfo)
         {
             if(BepInEx.Bootstrap.Chainloader.PluginInfos[ProcSolverPlugin.guid] == null)
             {
                 return 1;
             }
-            return _GetProcRate(damageInfo);
-        }
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
-        private float _GetProcRate(DamageInfo damageInfo)
-        {
-            float mod = ProcSolverPlugin.GetProcRateMod();
-            return mod;
+            return ProcSolverPlugin.GetProcRateMod(damageInfo);
         }
     }
 }

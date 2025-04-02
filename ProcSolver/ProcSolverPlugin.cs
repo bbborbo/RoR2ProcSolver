@@ -109,7 +109,7 @@ namespace ProcSolver
                 });
         }
 
-        public static float GetProcRateMod() 
+        public static float GetProcRateMod(DamageInfo damageInfo) 
         {
             return procRateMod;
         }
