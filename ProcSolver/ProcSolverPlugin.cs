@@ -4,6 +4,7 @@ using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using R2API;
 using RoR2;
+using RoR2BepInExPack.Utilities;
 using System;
 using System.Collections;
 using System.Security;
@@ -18,9 +19,6 @@ using UnityEngine;
 namespace ProcSolver
 {
     [BepInDependency(R2API.ProcTypeAPI.PluginGUID)]
-    [BepInDependency(R2API.LanguageAPI.PluginGUID)]
-    [BepInDependency("LordVGames.DamageSourceForEnemies")]
-    [BepInDependency("LordVGames.AddRunicLensToProcChain")]
 
     /// <summary>
     /// Curtails autoplay and excessive proc chaining.
@@ -35,9 +33,10 @@ namespace ProcSolver
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcSolver";
-        public const string version = "1.0.1";
+        public const string version = "1.1.0";
         #endregion
 
+        public static FixedConditionalWeakTable<DamageInfo, MoreDamageInfoStats> moreDamageInfoStats = new FixedConditionalWeakTable<DamageInfo, MoreDamageInfoStats>();
         public static ModdedProcType ProccedBySkill;
         #region config
         internal static ConfigFile CustomConfigFile { get; private set; }
@@ -63,59 +62,32 @@ namespace ProcSolver
                 );
             AutoplayChainLength = CustomConfigFile.Bind<int>(
                 "Proc Solver : Proc Chains", "Max Proc Chain Length Initiated By Items (Autoplay)", 1,
-                "When a proc chain is initiated from an item, how many times can proc items be recursively triggered before the chain is cut off. ]" +
+                "When a proc chain is initiated from an item, how many times can proc items be recursively triggered before the chain is cut off. " +
                 "Set to -1 to uncap proc chains, or 0 to disallow entirely. " +
                 "For example: If this number is 1, then a chain would be ITEM > PROC. "
                 );
             ChainProcRate = CustomConfigFile.Bind<float>(
-                "Proc Solver : Proc Rate", "Proc Rate Modifier On Proc Chains Initiated By Skill Or Equipment", 1,
+                "Proc Solver : Proc Rate", "Proc Rate Modifier On Proc Chains Initiated By Skill Or Equipment", 0.5f,
                 "Proc chain items will proc other items at a reduced rate based on this modifier. " +
                 "For example: If this number is 0.5, then ATG Missile has a 12.5% chance to proc Ukulele instead of 25%."
                 );
             AutoplayProcRate = CustomConfigFile.Bind<float>(
-                "Proc Solver : Proc Rate", "Proc Rate Modifier On Proc Chains Initiated By Items (Autoplay)", 0.4f,
+                "Proc Solver : Proc Rate", "Proc Rate Modifier On Proc Chains Initiated By Items (Autoplay)", 0.2f,
                 "Proc chain items will proc other items at a reduced rate based on this modifier. " +
-                "For example: If this number is 0.4, then Ceremonial Dagger has a 10% chance to proc Ukulele instead of 25%."
+                "For example: If this number is 0.2, then Ceremonial Dagger has a 5% chance to proc Ukulele instead of 25%."
                 );
 
             ProccedBySkill = ProcTypeAPI.ReserveProcType();
 
             IL.RoR2.GlobalEventManager.ProcessHitEnemy += AddProcRateMod;
-            if (BandsDamageSourceRequirement.Value)
-            {
-                IL.RoR2.GlobalEventManager.ProcessHitEnemy += AddBandsSkillRequirement;
-
-                LanguageAPI.Add("ITEM_ICERING_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also blast enemies with a <style=cIsDamage>runic ice blast</style>, <style=cIsUtility>slowing</style> them by <style=cIsUtility>80%</style> for <style=cIsUtility>3s</style> <style=cStack>(+3s per stack)</style> and dealing <style=cIsDamage>250%</style> <style=cStack>(+250% per stack)</style> TOTAL damage. Recharges every <style=cIsUtility>10</style> seconds.");
-                LanguageAPI.Add("ITEM_FIRERING_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also blast enemies with a <style=cIsDamage>runic flame tornado</style>, dealing <style=cIsDamage>300%</style> <style=cStack>(+300% per stack)</style> TOTAL damage over time. Recharges every <style=cIsUtility>10</style> seconds.");
-                LanguageAPI.Add("ITEM_ELEMENTALRINGVOID_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also fire a black hole that <style=cIsUtility>draws enemies within 15m into its center</style>. Lasts <style=cIsUtility>5</style> seconds before collapsing, dealing <style=cIsDamage>100%</style> <style=cStack>(+100% per stack)</style> TOTAL damage. Recharges every <style=cIsUtility>20</style> seconds. <style=cIsVoid>Corrupts all Runald's and Kjaro's Bands</style>.");
-            }
         }
 
-        private void AddBandsSkillRequirement(ILContext il)
+        public static float GetProcRateMod(DamageInfo damageInfo)
         {
-            ILCursor c = new ILCursor(il);
-
-                c.GotoNext(MoveType.After,
-                    x => x.MatchLdcI4((int)ProcType.Rings),
-                    x => x.MatchCallOrCallvirt("RoR2.ProcChainMask", nameof(RoR2.ProcChainMask.HasProc))
-                    );
-                c.Emit(OpCodes.Ldarg_1);
-                c.EmitDelegate<Func<bool, DamageInfo, bool>>((cantProc, damageInfo) =>
-                {
-                    return cantProc || !(damageInfo.damageType.IsDamageSourceSkillBased || damageInfo.damageType.damageSource == DamageSource.Equipment);
-                });
+            if (damageInfo == null)
+                return 1;
+            return moreDamageInfoStats.GetOrCreateValue(damageInfo).procRate;
         }
-
-        public static float GetProcRateMod(DamageInfo damageInfo) 
-        {
-            return procRateMod;
-        }
-
-
-        static float procRateMod = 1;
         static int maxChainLength => MaxChainLength.Value;
         static int allowedChainDepthOnAutoplay => AutoplayChainLength.Value;
         private void AddProcRateMod(ILContext il)
@@ -125,7 +97,8 @@ namespace ProcSolver
             c.Emit(OpCodes.Ldarg_1);
             c.EmitDelegate<Action<DamageInfo>>((damageInfo) =>
             {
-                procRateMod = GetProcRate(damageInfo);
+                MoreDamageInfoStats mdis = moreDamageInfoStats.GetOrCreateValue(damageInfo);
+                mdis.procRate = GetProcRate(damageInfo);
             });
         }
         static float GetProcRate(DamageInfo damageInfo)
@@ -187,5 +160,11 @@ namespace ProcSolver
             }
             return chainDepth;
         }
+    }
+    public class MoreDamageInfoStats
+    {
+        public float procRate = 1;
+        public int procChainDepth = 0;
+        public bool isAutoplay = false;
     }
 }

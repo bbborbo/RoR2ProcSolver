@@ -19,7 +19,7 @@ using UnityEngine.AddressableAssets;
 #pragma warning disable 
 namespace ProcPatcher
 {
-    //[BepInDependency(ProcSolverPlugin.guid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(ProcSolverPlugin.guid, BepInDependency.DependencyFlags.SoftDependency)]
     /// <summary>
     /// Fixes certain negative proc interactions
     /// - Proc coefficient only affects damage-agnostic procs, once
@@ -33,7 +33,7 @@ namespace ProcPatcher
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcPatcher";
-        public const string version = "1.0.3";
+        public const string version = "1.0.6";
         #endregion
 
         #region config
@@ -44,8 +44,12 @@ namespace ProcPatcher
         public static ConfigEntry<bool> ElectricBoomerangProcCoeff { get; set; }
         #endregion
 
+        static bool procSolverInstalled = false;
+
         void Awake()
         {
+            procSolverInstalled = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey(ProcSolverPlugin.guid);
+
             CustomConfigFile = new ConfigFile(Paths.ConfigPath + "\\ProcPatcher.cfg", true);
             ShurikenDamageSource = CustomConfigFile.Bind<bool>("Proc Patcher : Damage Source", "Shuriken Damage Source", true, "Should Proc Patcher set Shuriken's Damage Source to Primary?");
             BleedChanceProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Bleed Proc Chance Be Affected By Proc Coefficient", true, "Should Bleed Proc Chance Be Affected By Proc Coefficient");
@@ -73,6 +77,7 @@ namespace ProcPatcher
 
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "BleedOnHitAndExplode", isChainProc: false, fixProcCoeff: BleedChanceProcCoeff.Value); //this is bleed chance
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "Missile");
+            FixChanceForProcItem(c, "RoR2.DLC1Content/Items", "MissileVoid");
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "ChainLightning");
             FixChanceForProcItem(c, "RoR2.DLC1Content/Items", "ChainLightningVoid");
             FixChanceForProcItem(c, "RoR2.RoR2Content/Items", "BounceNearby");
@@ -87,17 +92,22 @@ namespace ProcPatcher
         {
             c.Index = 0;
 
-            if(
-                c.TryGotoNext(
-                    MoveType.After,
-                    x => x.MatchLdsfld(a, b),
-                    x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCount))
-                    )
-                && c.TryGotoNext(
-                    MoveType.Before,
-                    x => x.MatchLdfld<DamageInfo>(nameof(DamageInfo.procCoefficient))
-                    )
-                )
+            bool b1 = c.TryGotoNext(
+                MoveType.After,
+                x => x.MatchLdsfld(a, b),
+                x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCount))
+                );
+            if (!b1)
+            {
+                Debug.LogError(b + " Proc Hook Failed");
+                return;
+            }
+
+            bool b2 = c.TryGotoNext(
+                MoveType.Before,
+                x => x.MatchLdfld<DamageInfo>(nameof(DamageInfo.procCoefficient))
+                );
+            if (b2)
             {
                 c.Remove();
                 c.EmitDelegate<Func<DamageInfo, float>>((damageInfo) =>
@@ -113,20 +123,34 @@ namespace ProcPatcher
                 });
                 Debug.Log(b + " Proc Hook Success");
             }
-            else
+            else if (isChainProc && procSolverInstalled)
             {
-                Debug.LogError(b + " Proc Hook Failed");
+                c.Emit(OpCodes.Ldarg_1); //damage info
+                c.Emit(OpCodes.Ldloc, 6); //master
+                c.EmitDelegate<Func<int, DamageInfo, CharacterMaster, int>>((itemCount, damageInfo, master) =>
+                {
+                    float procRate = _GetProcRate(damageInfo);
+                    if (Util.CheckRoll(procRate * 100, master))
+                        return itemCount;
+
+                    return 0;
+                });
             }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
-        private float GetProcRate(DamageInfo damageInfo)
+        public static float GetProcRate(DamageInfo damageInfo)
         {
-            if(BepInEx.Bootstrap.Chainloader.PluginInfos[ProcSolverPlugin.guid] == null)
+            if (!procSolverInstalled)
             {
                 return 1;
             }
-            return ProcSolverPlugin.GetProcRateMod(damageInfo);
+            return _GetProcRate(damageInfo);
+        }
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+        private static float _GetProcRate(DamageInfo damageInfo)
+        {
+            float mod = ProcSolverPlugin.GetProcRateMod(damageInfo);
+            return mod;
         }
     }
 }
