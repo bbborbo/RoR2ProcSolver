@@ -33,12 +33,13 @@ namespace ProcPatcher
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcPatcher";
-        public const string version = "1.0.6";
+        public const string version = "1.1.1";
         #endregion
 
         #region config
         internal static ConfigFile CustomConfigFile { get; private set; }
         public static ConfigEntry<bool> ShurikenDamageSource { get; set; }
+        public static ConfigEntry<bool> HeadstompersDamageSource { get; set; }
         public static ConfigEntry<bool> BleedChanceProcCoeff { get; set; }
         public static ConfigEntry<bool> RunicLensProcCoeff { get; set; }
         public static ConfigEntry<bool> ElectricBoomerangProcCoeff { get; set; }
@@ -52,6 +53,7 @@ namespace ProcPatcher
 
             CustomConfigFile = new ConfigFile(Paths.ConfigPath + "\\ProcPatcher.cfg", true);
             ShurikenDamageSource = CustomConfigFile.Bind<bool>("Proc Patcher : Damage Source", "Shuriken Damage Source", true, "Should Proc Patcher set Shuriken's Damage Source to Primary?");
+            HeadstompersDamageSource = CustomConfigFile.Bind<bool>("Proc Patcher : Damage Source", "Headstompers Damage Source", true, "Should Proc Patcher set Headstompers's Damage Source to Primary?");
             BleedChanceProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Bleed Proc Chance Be Affected By Proc Coefficient", true, "Should Bleed Proc Chance Be Affected By Proc Coefficient");
             RunicLensProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Runic Lens Proc Chance Be Affected By Proc Coefficient", true, "Should Runic Lens Proc Chance Be Affected By Proc Coefficient");
             ElectricBoomerangProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Electric Boomerang Proc Chance Be Affected By Proc Coefficient", true, "Should Electric Boomerang Proc Chance Be Affected By Proc Coefficient");
@@ -70,7 +72,29 @@ namespace ProcPatcher
                     }
                 }
             }
+            if (HeadstompersDamageSource.Value)
+            {
+                IL.EntityStates.Headstompers.HeadstompersFall.DoStompExplosionAuthority += DoHeadstompersDamageSource;
+            }
         }
+
+        private void DoHeadstompersDamageSource(ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+
+            bool b = c.TryGotoNext(MoveType.Before,
+                x => x.MatchCallOrCallvirt<BlastAttack>(nameof(BlastAttack.Fire))
+                );
+            if (b)
+            {
+                c.EmitDelegate<Func<BlastAttack, BlastAttack>>((blastAttack) =>
+                 {
+                     blastAttack.damageType.damageSource = DamageSource.Primary;
+                     return blastAttack;
+                 });
+            }
+        }
+
         private void ProcCoeffFix_OnHitEnemy(ILContext il)
         {
             ILCursor c = new ILCursor(il);
