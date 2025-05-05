@@ -16,8 +16,8 @@ using System.Security.Permissions;
 namespace ProcLimiter
 {
     [BepInDependency(R2API.LanguageAPI.PluginGUID)]
-    [BepInDependency("LordVGames.DamageSourceForEnemies")]
-    [BepInDependency("LordVGames.AddRunicLensToProcChain")]
+    [BepInDependency("LordVGames.DamageSourceForEnemies", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("LordVGames.DamageSourceForEquipment", BepInDependency.DependencyFlags.SoftDependency)]
     /// <summary>
     /// Curtails autoplay and excessive proc chaining.
     /// - Adds a proc rate parameter to damage info that is determined by proc chain depth

@@ -19,6 +19,7 @@ using UnityEngine;
 namespace ProcSolver
 {
     [BepInDependency(R2API.ProcTypeAPI.PluginGUID)]
+    [BepInDependency("LordVGames.AddRunicLensToProcChain", BepInDependency.DependencyFlags.SoftDependency)]
 
     /// <summary>
     /// Curtails autoplay and excessive proc chaining.
@@ -33,7 +34,7 @@ namespace ProcSolver
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcSolver";
-        public const string version = "1.1.0";
+        public const string version = "1.1.1";
         #endregion
 
         public static FixedConditionalWeakTable<DamageInfo, MoreDamageInfoStats> moreDamageInfoStats = new FixedConditionalWeakTable<DamageInfo, MoreDamageInfoStats>();
