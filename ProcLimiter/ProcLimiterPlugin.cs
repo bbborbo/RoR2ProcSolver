@@ -52,24 +52,22 @@ namespace ProcLimiter
             {
                 IL.RoR2.GlobalEventManager.ProcessHitEnemy += AddBandsSkillRequirement;
 
-                LanguageAPI.Add("ITEM_ICERING_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also blast enemies with a <style=cIsDamage>runic ice blast</style>, <style=cIsUtility>slowing</style> them by <style=cIsUtility>80%</style> for <style=cIsUtility>3s</style> <style=cStack>(+3s per stack)</style> and dealing <style=cIsDamage>250%</style> <style=cStack>(+250% per stack)</style> TOTAL damage. Recharges every <style=cIsUtility>10</style> seconds.");
-                LanguageAPI.Add("ITEM_FIRERING_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also blast enemies with a <style=cIsDamage>runic flame tornado</style>, dealing <style=cIsDamage>300%</style> <style=cStack>(+300% per stack)</style> TOTAL damage over time. Recharges every <style=cIsUtility>10</style> seconds.");
-                LanguageAPI.Add("ITEM_ELEMENTALRINGVOID_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also fire a black hole that <style=cIsUtility>draws enemies within 15m into its center</style>. Lasts <style=cIsUtility>5</style> seconds before collapsing, dealing <style=cIsDamage>100%</style> <style=cStack>(+100% per stack)</style> TOTAL damage. Recharges every <style=cIsUtility>20</style> seconds. <style=cIsVoid>Corrupts all Runald's and Kjaro's Bands</style>.");
+                //LanguageAPI.Add("ITEM_ICERING_DESC",
+                //    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also blast enemies with a <style=cIsDamage>runic ice blast</style>, <style=cIsUtility>slowing</style> them by <style=cIsUtility>80%</style> for <style=cIsUtility>3s</style> <style=cStack>(+3s per stack)</style> and dealing <style=cIsDamage>250%</style> <style=cStack>(+250% per stack)</style> TOTAL damage. Recharges every <style=cIsUtility>10</style> seconds.");
+                //LanguageAPI.Add("ITEM_FIRERING_DESC",
+                //    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also blast enemies with a <style=cIsDamage>runic flame tornado</style>, dealing <style=cIsDamage>300%</style> <style=cStack>(+300% per stack)</style> TOTAL damage over time. Recharges every <style=cIsUtility>10</style> seconds.");
+                //LanguageAPI.Add("ITEM_ELEMENTALRINGVOID_DESC",
+                //    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also fire a black hole that <style=cIsUtility>draws enemies within 15m into its center</style>. Lasts <style=cIsUtility>5</style> seconds before collapsing, dealing <style=cIsDamage>100%</style> <style=cStack>(+100% per stack)</style> TOTAL damage. Recharges every <style=cIsUtility>20</style> seconds. <style=cIsVoid>Corrupts all Runald's and Kjaro's Bands</style>.");
             }
             if (DoChronic.Value)
             {
                 IL.RoR2.GlobalEventManager.ProcessHitEnemy += AddChronicSkillRequirement;
 
-                LanguageAPI.Add("ITEM_ICERING_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also blast enemies with a <style=cIsDamage>runic ice blast</style>, <style=cIsUtility>slowing</style> them by <style=cIsUtility>80%</style> for <style=cIsUtility>3s</style> <style=cStack>(+3s per stack)</style> and dealing <style=cIsDamage>250%</style> <style=cStack>(+250% per stack)</style> TOTAL damage. Recharges every <style=cIsUtility>10</style> seconds.");
-                LanguageAPI.Add("ITEM_FIRERING_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also blast enemies with a <style=cIsDamage>runic flame tornado</style>, dealing <style=cIsDamage>300%</style> <style=cStack>(+300% per stack)</style> TOTAL damage over time. Recharges every <style=cIsUtility>10</style> seconds.");
-                LanguageAPI.Add("ITEM_ELEMENTALRINGVOID_DESC",
-                    "Hits from <style=cIsUtility>skills or equipment</style> that deal <style=cIsDamage>more than 400% damage</style> also fire a black hole that <style=cIsUtility>draws enemies within 15m into its center</style>. Lasts <style=cIsUtility>5</style> seconds before collapsing, dealing <style=cIsDamage>100%</style> <style=cStack>(+100% per stack)</style> TOTAL damage. Recharges every <style=cIsUtility>20</style> seconds. <style=cIsVoid>Corrupts all Runald's and Kjaro's Bands</style>.");
-            }
+                //LanguageAPI.Add("ITEM_INCREASEDAMAGEONMULTIKILL_DESC",
+                //    "Killing an enemy increases your damage by <style=cIsDamage>3.5%</style> <style=cStack>(+1% per stack)</style>, " +
+                //    "up to <style=cIsUtility>10</style> <style=cStack>(+5 per stack)</style>, for <style=cIsUtility>7s</style>. " +
+                //    "Dealing damage with <style=cIsUtility>skills or equipment</style> refreshes the timer.");
+            }        
         }
 
         private void AddChronicSkillRequirement(ILContext il)
