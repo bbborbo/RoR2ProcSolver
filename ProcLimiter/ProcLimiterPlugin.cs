@@ -3,6 +3,7 @@ using BepInEx.Configuration;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using R2API;
+using R2API.Utils;
 using RoR2;
 using System;
 using System.Security;
@@ -24,6 +25,7 @@ namespace ProcLimiter
     /// - Adds damage source requirements for certain procs (bands)
     /// </summary>
     [BepInPlugin(guid, modName, version)]
+    [NetworkCompatibility(CompatibilityLevel.NoNeedForSync, VersionStrictness.DifferentModVersionsAreOk)]
     public class ProcLimiterPlugin : BaseUnityPlugin
     {
         #region plugin info
@@ -31,7 +33,7 @@ namespace ProcLimiter
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcLimiter";
-        public const string version = "1.0.0";
+        public const string version = "1.0.3";
         #endregion
         internal static ConfigFile CustomConfigFile { get; private set; }
         public static ConfigEntry<bool> DoBands { get; set; }

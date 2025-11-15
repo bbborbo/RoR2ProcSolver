@@ -3,6 +3,7 @@ using BepInEx.Configuration;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using R2API;
+using R2API.Utils;
 using RoR2;
 using RoR2BepInExPack.Utilities;
 using System;
@@ -27,6 +28,7 @@ namespace ProcSolver
     /// - Adds damage source requirements for certain procs (bands)
     /// </summary>
     [BepInPlugin(guid, modName, version)]
+    [NetworkCompatibility(CompatibilityLevel.NoNeedForSync, VersionStrictness.DifferentModVersionsAreOk)]
     public class ProcSolverPlugin : BaseUnityPlugin
     {
         #region plugin info
@@ -34,7 +36,7 @@ namespace ProcSolver
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcSolver";
-        public const string version = "1.1.1";
+        public const string version = "1.1.2";
         #endregion
 
         public static FixedConditionalWeakTable<DamageInfo, MoreDamageInfoStats> moreDamageInfoStats = new FixedConditionalWeakTable<DamageInfo, MoreDamageInfoStats>();
