@@ -3,7 +3,6 @@ using BepInEx.Configuration;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using ProcSolver;
-using R2API.Utils;
 using RoR2;
 using RoR2.Projectile;
 using System;
@@ -27,7 +26,6 @@ namespace ProcPatcher
     /// - Adds damage sourcing to Shuriken
     /// </summary>
     [BepInPlugin(guid, modName, version)]
-    [NetworkCompatibility(CompatibilityLevel.NoNeedForSync, VersionStrictness.DifferentModVersionsAreOk)]
     public class ProcPatcherPlugin : BaseUnityPlugin
     {
         #region plugin info
@@ -35,7 +33,7 @@ namespace ProcPatcher
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcPatcher";
-        public const string version = "1.1.2";
+        public const string version = "1.1.1";
         #endregion
 
         #region config
