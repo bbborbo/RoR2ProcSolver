@@ -80,7 +80,8 @@ namespace ProcSolver
 
             ProccedBySkill = ProcTypeAPI.ReserveProcType();
 
-            IL.RoR2.GlobalEventManager.ProcessHitEnemy += AddProcRateMod;
+            IL.RoR2.HealthComponent.TakeDamage += AddProcRateMod;
+            IL.RoR2.GlobalEventManager.OnHitEnemy += AddProcRateMod;
         }
 
         public static float GetProcRateMod(DamageInfo damageInfo)
@@ -100,6 +101,8 @@ namespace ProcSolver
             {
                 MoreDamageInfoStats mdis = moreDamageInfoStats.GetOrCreateValue(damageInfo);
                 mdis.procRate = GetProcRate(damageInfo);
+                if (mdis.procRate == 0 && damageInfo.procChainMask.HasProc(ProcType.SureProc))
+                    damageInfo.procChainMask.RemoveProc(ProcType.SureProc);
             });
         }
         static float GetProcRate(DamageInfo damageInfo)
@@ -141,7 +144,9 @@ namespace ProcSolver
                     procType == ProcType.Backstab ||
                     procType == ProcType.LoaderLightning ||
                     procType == ProcType.FractureOnHit ||
-                    procType == ProcType.MicroMissile
+                    procType == ProcType.MicroMissile ||
+                    procType == ProcType.CritAtLowerElevation || 
+                    procType == ProcType.SureProc
                 )
                     continue;
                 
