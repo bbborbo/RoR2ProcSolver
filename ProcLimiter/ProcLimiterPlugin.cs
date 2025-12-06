@@ -36,6 +36,7 @@ namespace ProcLimiter
         internal static ConfigFile CustomConfigFile { get; private set; }
         public static ConfigEntry<bool> DoBands { get; set; }
         public static ConfigEntry<bool> DoChronic { get; set; }
+        public static ConfigEntry<bool> DoBoots { get; set; }
         void Awake()
         {
             CustomConfigFile = new ConfigFile(Paths.ConfigPath + "\\ProcSolver.cfg", true);
@@ -44,8 +45,12 @@ namespace ProcLimiter
                 "Should Proc Limiter disable band procs on non-skill or non-equipment sources?"
                 );
             DoChronic = CustomConfigFile.Bind<bool>(
-                "Proc Limiter", "Chronix Expansion Damage Source", true,
+                "Proc Limiter", "Chronic Expansion Damage Source", true,
                 "Should Proc Limiter disable chronic expansion buff extension on non-skill or non-equipment sources?"
+                );
+            DoBoots = CustomConfigFile.Bind<bool>(
+                "Proc Limiter", "Hiker Boots Damage Source", true,
+                "Should Proc Limiter disable Hiker Boots buff on non-skill or non-equipment sources?"
                 );
 
             if (DoBands.Value)
@@ -67,7 +72,37 @@ namespace ProcLimiter
                 //    "Killing an enemy increases your damage by <style=cIsDamage>3.5%</style> <style=cStack>(+1% per stack)</style>, " +
                 //    "up to <style=cIsUtility>10</style> <style=cStack>(+5 per stack)</style>, for <style=cIsUtility>7s</style>. " +
                 //    "Dealing damage with <style=cIsUtility>skills or equipment</style> refreshes the timer.");
-            }        
+            }
+            if (DoBoots.Value)
+            {
+                IL.RoR2.GlobalEventManager.ProcessHitEnemy += AddBootsSkillRequirement;
+
+                //LanguageAPI.Add("ITEM_INCREASEDAMAGEONMULTIKILL_DESC",
+                //    "Killing an enemy increases your damage by <style=cIsDamage>3.5%</style> <style=cStack>(+1% per stack)</style>, " +
+                //    "up to <style=cIsUtility>10</style> <style=cStack>(+5 per stack)</style>, for <style=cIsUtility>7s</style>. " +
+                //    "Dealing damage with <style=cIsUtility>skills or equipment</style> refreshes the timer.");
+            }
+        }
+
+        private void AddBootsSkillRequirement(ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+
+            bool b = c.TryGotoNext(
+                MoveType.After,
+                x => x.MatchLdsfld("RoR2.DLC3Content/Items", "CritAtLowerElevation"),
+                x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCountEffective))
+                );
+            if (!b)
+                return;
+
+            c.Emit(OpCodes.Ldarg_1);
+            c.EmitDelegate<Func<int, DamageInfo, int>>((itemCount, damageInfo) =>
+            {
+                if (damageInfo.damageType.IsDamageSourceSkillBased || damageInfo.damageType.damageSource == DamageSource.Equipment)
+                    return itemCount;
+                return 0;
+            });
         }
 
         private void AddChronicSkillRequirement(ILContext il)
@@ -77,7 +112,7 @@ namespace ProcLimiter
             bool b = c.TryGotoNext(
                 MoveType.After,
                 x => x.MatchLdsfld("RoR2.DLC2Content/Items", "IncreaseDamageOnMultikill"),
-                x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCount))
+                x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCountEffective))
                 );
             if (!b)
                 return;
