@@ -119,7 +119,7 @@ namespace ProcPatcher
             bool b1 = c.TryGotoNext(
                 MoveType.After,
                 x => x.MatchLdsfld(a, b),
-                x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCount))
+                x => x.MatchCallOrCallvirt("RoR2.Inventory", nameof(RoR2.Inventory.GetItemCountEffective))
                 );
             if (!b1)
             {
