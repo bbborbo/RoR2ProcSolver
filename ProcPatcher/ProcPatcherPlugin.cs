@@ -33,7 +33,7 @@ namespace ProcPatcher
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcPatcher";
-        public const string version = "1.1.1";
+        public const string version = "1.2.0";
         #endregion
 
         #region config
@@ -43,6 +43,7 @@ namespace ProcPatcher
         public static ConfigEntry<bool> BleedChanceProcCoeff { get; set; }
         public static ConfigEntry<bool> RunicLensProcCoeff { get; set; }
         public static ConfigEntry<bool> ElectricBoomerangProcCoeff { get; set; }
+        public static ConfigEntry<bool> WyrmOnHitProcCoeff { get; set; }
         #endregion
 
         static bool procSolverInstalled = false;
@@ -57,8 +58,10 @@ namespace ProcPatcher
             BleedChanceProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Bleed Proc Chance Be Affected By Proc Coefficient", true, "Should Bleed Proc Chance Be Affected By Proc Coefficient");
             RunicLensProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Runic Lens Proc Chance Be Affected By Proc Coefficient", true, "Should Runic Lens Proc Chance Be Affected By Proc Coefficient");
             ElectricBoomerangProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should Electric Boomerang Proc Chance Be Affected By Proc Coefficient", true, "Should Electric Boomerang Proc Chance Be Affected By Proc Coefficient");
+            WyrmOnHitProcCoeff = CustomConfigFile.Bind<bool>("Proc Patcher : Proc Coeff Interactions", "Should WyrmOnHit Proc Chance Be Affected By Proc Coefficient", true, "Should WyrmOnHit Proc Chance Be Affected By Proc Coefficient");
 
             IL.RoR2.GlobalEventManager.ProcessHitEnemy += ProcCoeffFix_OnHitEnemy;
+            IL.RoR2.Items.WyrmOnHitBehavior.TryFire += ProcCoeffFix_WyrmOnHit;
 
             if (ShurikenDamageSource.Value)
             {
@@ -75,6 +78,34 @@ namespace ProcPatcher
             if (HeadstompersDamageSource.Value)
             {
                 IL.EntityStates.Headstompers.HeadstompersFall.DoStompExplosionAuthority += DoHeadstompersDamageSource;
+            }
+        }
+
+        private void ProcCoeffFix_WyrmOnHit(ILContext il)
+        {
+            ILCursor c = new ILCursor(il);
+            bool isChainProc = true;
+            bool fixProcCoeff = WyrmOnHitProcCoeff.Value;
+
+            bool b2 = c.TryGotoNext(
+                MoveType.Before,
+                x => x.MatchLdfld<DamageInfo>(nameof(DamageInfo.procCoefficient))
+                );
+            if (b2)
+            {
+                c.Remove();
+                c.EmitDelegate<Func<DamageInfo, float>>((damageInfo) =>
+                {
+                    float procRate = 1;
+
+                    if (isChainProc)
+                        procRate *= GetProcRate(damageInfo);
+                    if (!fixProcCoeff)
+                        procRate *= damageInfo.procCoefficient;
+
+                    return procRate;
+                });
+                Debug.Log("WyrmOnHit Proc Hook Success");
             }
         }
 
@@ -164,12 +195,34 @@ namespace ProcPatcher
 
         public static float GetProcRate(DamageInfo damageInfo)
         {
+            //If the proc coefficient is already zero, dont bother modifying it!!
+            if (damageInfo.procCoefficient <= 0)
+                return damageInfo.procCoefficient;
+
+            //If ProcSolver is not installed, do some rudimentary proc coeff work
+            //Skill sourced attacks are always 1 or higher
+            //Non-skill sourced attacks use their proc coefficient value
             if (!procSolverInstalled)
             {
-                return 1;
+                float procRate = damageInfo.procCoefficient;
+                if (damageInfo.damageType.IsDamageSourceSkillBased || damageInfo.damageType.damageSource == DamageSource.Equipment)
+                    procRate = Mathf.Max(procRate, 1);
+                return procRate;
             }
+
+            //If ProcSolver is installed, use ProcSolver's proc rate.
+            //This is last so it doesnt do weird stuff without ProcSolver installed
             return _GetProcRate(damageInfo);
         }
+
+//public static float GetProcRate(DamageInfo damageInfo)
+//{
+//    if (damageInfo.procCoefficient <= 0 || !procSolverInstalled)
+//        return damageInfo.procCoefficient;
+//
+//    return _GetProcRate(damageInfo);
+//}
+
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
         private static float _GetProcRate(DamageInfo damageInfo)
         {

@@ -34,7 +34,7 @@ namespace ProcSolver
         public const string guid = "com." + teamName + "." + modName;
         public const string teamName = "RiskOfBrainrot";
         public const string modName = "ProcSolver";
-        public const string version = "1.1.1";
+        public const string version = "1.1.5";
         #endregion
 
         public static FixedConditionalWeakTable<DamageInfo, MoreDamageInfoStats> moreDamageInfoStats = new FixedConditionalWeakTable<DamageInfo, MoreDamageInfoStats>();
@@ -68,17 +68,17 @@ namespace ProcSolver
                 "For example: If this number is 1, then a chain would be ITEM > PROC. "
                 );
             ChainProcRate = CustomConfigFile.Bind<float>(
-                "Proc Solver : Proc Rate", "Proc Rate Modifier On Proc Chains Initiated By Skill Or Equipment", 0.5f,
+                "Proc Solver : Proc Rate", "Proc Rate Modifier On Proc Chains Initiated By Skill Or Equipment", 1.0f,
                 "Proc chain items will proc other items at a reduced rate based on this modifier. " +
                 "For example: If this number is 0.5, then ATG Missile has a 12.5% chance to proc Ukulele instead of 25%."
                 );
             AutoplayProcRate = CustomConfigFile.Bind<float>(
-                "Proc Solver : Proc Rate", "Proc Rate Modifier On Proc Chains Initiated By Items (Autoplay)", 0.2f,
+                "Proc Solver : Proc Rate", "Proc Rate Modifier On Proc Chains Initiated By Items (Autoplay)", 0.5f,
                 "Proc chain items will proc other items at a reduced rate based on this modifier. " +
                 "For example: If this number is 0.2, then Ceremonial Dagger has a 5% chance to proc Ukulele instead of 25%."
                 );
 
-            ProccedBySkill = ProcTypeAPI.ReserveProcType();
+            ProccedBySkill = ProcTypeAPI.ReserveProcType(); 
 
             IL.RoR2.HealthComponent.TakeDamage += AddProcRateMod;
             IL.RoR2.GlobalEventManager.OnHitEnemy += AddProcRateMod;
@@ -112,12 +112,13 @@ namespace ProcSolver
             if (maxChainLength == 0)
                 return 0;
 
+            float procRate = damageInfo.procCoefficient;
             bool skillBased = damageInfo.damageType.IsDamageSourceSkillBased || damageInfo.damageType.damageSource == DamageSource.Equipment;
-            //if damage came from a skill or equipment th
+            // ignore depth checks if damage came from a skill or equipment
             if (skillBased)
             {
                 damageInfo.procChainMask.AddModdedProc(ProccedBySkill);
-                return 1;
+                return Mathf.Max(procRate, 1);
             }
 
             int chainDepth = GetProcChainDepth(damageInfo.procChainMask);
@@ -125,32 +126,56 @@ namespace ProcSolver
             //procced by skill increases the chain depth by 1 which should be accounted for
             if (initiatedBySkill)
                 chainDepth -= 1;
-            else if(allowedChainDepthOnAutoplay >= 0)//procced by item
+            else if(allowedChainDepthOnAutoplay >= 0)//if procced by item, add to chain depth
                 chainDepth += Mathf.Max(0, maxChainLength - allowedChainDepthOnAutoplay);
 
-            if (chainDepth < maxChainLength)
-                return initiatedBySkill ? ChainProcRate.Value : AutoplayProcRate.Value;
 
-            return 0;
+            if (chainDepth >= maxChainLength)
+                return 0;
+
+            return procRate * (initiatedBySkill ? ChainProcRate.Value : AutoplayProcRate.Value);
         }
 
+        public static readonly uint exemptProcTypes =
+            (1 << (int)ProcType.AACannon) |
+            (1 << (int)ProcType.Backstab) |
+            (1 << (int)ProcType.Behemoth) |
+            (1 << (int)ProcType.BleedOnHit) |
+            (1 << (int)ProcType.Count) |
+            (1 << (int)ProcType.CritAtLowerElevation) |
+            (1 << (int)ProcType.CritHeal) |
+            (1 << (int)ProcType.ExplodeOnDeathVoid) |
+            (1 << (int)ProcType.FractureOnHit) |
+            (1 << (int)ProcType.HealNova) |
+            (1 << (int)ProcType.HealOnHit) |
+            (1 << (int)ProcType.LoaderLightning) |
+            (1 << (int)ProcType.LunarPotionActivation) |
+            (1 << (int)ProcType.MicroMissile) |
+            (1 << (int)ProcType.PlasmaCore) |
+            (1 << (int)ProcType.RepeatHeal) |
+            (1 << (int)ProcType.Rings) |
+            (1 << (int)ProcType.SharedSuffering) |
+            (1 << (int)ProcType.SureProc) |
+            (1 << (int)ProcType.Thorns) |
+            (1 << (int)ProcType.VoidSurvivorCrush);
+        public static readonly uint ChainProcTypes =
+            //(1 << (int)ProcType.Behemoth) | //behemoth
+            (1 << (int)ProcType.BounceNearby) | //meathook
+            (1 << (int)ProcType.ChainLightning) | //ukulele
+            (1 << (int)ProcType.LightningStrikeOnHit) | //cherf
+            (1 << (int)ProcType.Meatball) | //merf
+            (1 << (int)ProcType.MeteorAttackOnHighDamage) | //runic
+            (1 << (int)ProcType.Missile) | //atg
+            (1 << (int)ProcType.Rings) | //bands
+            (1 << (int)ProcType.SharedSuffering) |
+            (1 << (int)ProcType.StunAndPierceDamage) | //eboomerang
+            (1 << (int)ProcType.WyrmOnHit); //sauteed worms
         public static int GetProcChainDepth(ProcChainMask procChainMask)
         {
             int chainDepth = 1;
             for (ProcType procType = 0; procType < ProcType.Count; procType++)
             {
-                if (procType == ProcType.LoaderLightning ||
-                    procType == ProcType.Thorns ||
-                    procType == ProcType.Backstab ||
-                    procType == ProcType.LoaderLightning ||
-                    procType == ProcType.FractureOnHit ||
-                    procType == ProcType.MicroMissile ||
-                    procType == ProcType.CritAtLowerElevation || 
-                    procType == ProcType.SureProc
-                )
-                    continue;
-                
-                if (procChainMask.HasProc(procType))
+                if((procChainMask.mask & ChainProcTypes) != 0L)
                 {
                     chainDepth++;
                 }
@@ -159,6 +184,7 @@ namespace ProcSolver
             BitArray moddedMask = ProcTypeAPI.GetModdedMask(procChainMask);
             for (int i = 1; i < moddedMask.Count; i++)
             {
+                //get value for this bit, i
                 if (moddedMask.Get(i))
                 {
                     chainDepth++;
